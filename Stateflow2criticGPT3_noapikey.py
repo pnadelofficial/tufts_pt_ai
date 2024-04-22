@@ -9,11 +9,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 os.environ["AUTOGEN_USE_DOCKER"] = "False"
+api_key = os.environ["OPENAI_API_KEY"]
 
 config_list_gpt4 = [
     {
         "model": "gpt-4-1106-preview",
-        "api_key": "",
+        "api_key": api_key,
         # ... other configuration parameters ...
     },
     # ... potentially other configuration dictionaries ...
@@ -21,7 +22,7 @@ config_list_gpt4 = [
 config_list = [
     {
         "model": "gpt-4-1106-preview",
-        "api_key": "",
+        "api_key": api_key,
         # ... other configuration parameters ...
     },
     # ... potentially other configuration dictionaries ...
@@ -46,13 +47,13 @@ initializer = autogen.UserProxyAgent(
     name="Init",
 )
 
-QUADL_CAPTE = GPTAssistantAgent(name="QUADL", llm_config = {"config_list": [{"model":"gpt-4","api_key":""}], "assistant_id":"asst_3O5xFFjKdgoIigPlwDrmIlRX"})
+QUADL_CAPTE = GPTAssistantAgent(name="QUADL", llm_config = {"config_list": [{"model":"gpt-4","api_key":api_key}], "assistant_id":"asst_3O5xFFjKdgoIigPlwDrmIlRX"})
 QUADL_CAPTE.register_function(function_map={})
 
-s_critic = GPTAssistantAgent(name="s_crit", llm_config = {"config_list": [{"model":"gpt-4","api_key":""}], "assistant_id":"asst_tHvvMNxSo6MbkwJnR3LDTFhV"})
+s_critic = GPTAssistantAgent(name="s_crit", llm_config = {"config_list": [{"model":"gpt-4","api_key":api_key}], "assistant_id":"asst_tHvvMNxSo6MbkwJnR3LDTFhV"})
 s_critic.register_function(function_map={})
 
-s_critic2 = GPTAssistantAgent(name="s_crit", llm_config = {"config_list": [{"model":"gpt-4","api_key":""}], "assistant_id":"asst_6u7I2TCs7adHSS7rOA8I91YA"})
+s_critic2 = GPTAssistantAgent(name="s_crit", llm_config = {"config_list": [{"model":"gpt-4","api_key":api_key}], "assistant_id":"asst_6u7I2TCs7adHSS7rOA8I91YA"})
 s_critic2.register_function(function_map={})
 
 accepter = autogen.AssistantAgent(
@@ -98,7 +99,7 @@ groupchat = autogen.GroupChat(
 )
 manager = autogen.GroupChatManager(groupchat=groupchat, llm_config=gpt4_config)
 
-initializer.initiate_chat(
+chat = initializer.initiate_chat(
     manager, message="Create 5 multiple-choice items and output them in the appropriate format, including labels: Learning Objective(LO), CAPTE Statndard(CAPTE), Answer(A), Sentence quote from content(S), Bloom(B)"
 )
-
+print(chat)

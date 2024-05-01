@@ -175,7 +175,7 @@ class StateflowNoCritics(MCQGroupChat):
             # State 1-> State 2: Verify
         elif last_speaker is self.agents["QUADL_CAPTE"]:
             # Assuming the last message contains the output path or relevant information
-            accepter = self.agents["accepter"]
+            accepter = self.agents["Accepter"]
             time.sleep(3)
             return accepter
         # elif last_speaker is self.agents["s_critic"]:

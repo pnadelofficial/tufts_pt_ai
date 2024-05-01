@@ -7,7 +7,7 @@ Create 5 multiple-choice items and output them in the appropriate format, includ
 """.strip()
 
 SYSTEM_MESSAGE = """
-You will be creating several multiple-choice items. Complete every conversation with the list of all of the FINAL questions. Please emit all questions in the format of the following example:
+You will be creating several multiple-choice items. Complete every conversation with the list of all of the FINAL questions. Please separate all questions with a "---", as in the format of the following example:
 
 ---
 
@@ -71,6 +71,7 @@ altD. CT scan
 
 ---
 
+THIS FORMATTING IS CRITICAL! Please ensure that all questions are formatted in this way.
 """.strip()
 
 QUADL_CAPTE = """

@@ -178,24 +178,6 @@ class StateflowNoCritics(MCQGroupChat):
             accepter = self.agents["Accepter"]
             time.sleep(3)
             return accepter
-        # elif last_speaker is self.agents["s_critic"]:
-        #     if messages[-1]["content"].strip().lower() == "true":
-        #         print("Transitioning to accepter")
-        #         return self.accepter
-        #     else:
-        #         print("Transitioning to s_critic2")
-        #         s_critic2 = self.agents["s_critic2"]
-        #         time.sleep(3)
-        #         return s_critic2
-        # elif last_speaker is self.agents["s_critic2"]:
-        #     if messages[-1]["content"].strip().lower() == "true":
-        #         print("Transitioning to accepter")
-        #         return self.accepter      
-        #     else:
-        #         print("Transitioning back to QUADL_CAPTE")
-        #         quadl = self.agents["QUADL_CAPTE"]
-        #         time.sleep(3)
-        #         return quadl
         elif last_speaker is self.accepter:
             # State 3 -> End
             return None

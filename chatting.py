@@ -48,7 +48,7 @@ class MCQGroupChat:
         self.accepter_timeout = accepter_timeout
         self.max_round = max_round
 
-        self.api_key = st.secrets["open_ai_key"]
+        self.api_key = st.secrets['openai']["open_ai_key"]
 
         self.agents = {}
         for name, tup in agent_dict.items():

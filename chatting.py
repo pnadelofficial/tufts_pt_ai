@@ -20,7 +20,7 @@ class TrackableAssistantAgent(AssistantAgent):
         content = message["content"]
         if '---' in content:
             qs = re.split('---', content)
-            for q in qs[1:]:
+            for q in qs:
                 st.session_state['questions'].append(q.strip())
         st.session_state['messages'].append(output)
         return super()._process_received_message(message, sender, silent)

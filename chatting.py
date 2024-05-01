@@ -4,32 +4,41 @@ from autogen import AssistantAgent, UserProxyAgent, GroupChat, GroupChatManager
 import prompts
 import time
 import streamlit as st
+import re
 
 os.environ["AUTOGEN_USE_DOCKER"] = "False"
 
+if 'messages' not in st.session_state:
+    st.session_state['messages'] = []
+
+if 'questions' not in st.session_state:
+    st.session_state['questions'] = []
+
 class TrackableAssistantAgent(AssistantAgent):
     def _process_received_message(self, message, sender, silent):
-        with st.chat_message(sender.name):
-            output = message["name"] + ": " + message["content"]
-            st.markdown(output)
+        output = message["name"] + ": " + message["content"]
+        content = message["content"]
+        if '---' in content:
+            qs = re.split('---', content)
+            for q in qs[1:]:
+                st.session_state['questions'].append(q.strip())
+        st.session_state['messages'].append(output)
         return super()._process_received_message(message, sender, silent)
     
 class TrackableUserProxyAgent(UserProxyAgent):
     def _process_received_message(self, message, sender, silent):
-        with st.chat_message(sender.name):
-            output = message["name"] + ": " + message["content"]
-            st.markdown(output)
+        output = message["name"] + ": " + message["content"]
+        st.session_state['messages'].append(output)
         return super()._process_received_message(message, sender, silent)
     
 class TrackableGPTAssistantAgent(GPTAssistantAgent):
     def _process_received_message(self, message, sender, silent):
-        with st.chat_message(sender.name):
-            output = message["name"] + ": " + message["content"]
-            st.markdown(output)
+        output = message["name"] + ": " + message["content"]
+        st.session_state['messages'].append(output)
         return super()._process_received_message(message, sender, silent)
 
 class MCQGroupChat:
-    def __init__(self, name, agent_dict, message=prompts.DEFAULT_MCQ_GEN, accepter_model='gpt-4-1106-preview', seed=42, accepter_temp=0, accepter_timeout=120):
+    def __init__(self, name, agent_dict, system_message='', message=prompts.DEFAULT_MCQ_GEN, accepter_model='gpt-4-1106-preview', seed=42, accepter_temp=0, accepter_timeout=120, max_round=5):
         self.name = name
         self.message = message
         self.agent_dict = agent_dict
@@ -37,13 +46,14 @@ class MCQGroupChat:
         self.seed = seed
         self.accepter_temp = accepter_temp
         self.accepter_timeout = accepter_timeout
+        self.max_round = max_round
 
         self.api_key = os.environ["OPENAI_API_KEY"]
 
         self.agents = {}
         for name, tup in agent_dict.items():
             agent_id, model = tup
-            agent = TrackableGPTAssistantAgent(name=name, llm_config = {"config_list": [{"model":model,"api_key":self.api_key, 'check_every_ms':300, "request_timeout": 1000}], "assistant_id":agent_id, })
+            agent = TrackableGPTAssistantAgent(name=name, llm_config = {"config_list": [{"model":model,"api_key":self.api_key, 'check_every_ms':300, "request_timeout": 6000}], "assistant_id":agent_id, })
             agent.register_function(function_map={})
             self.agents[name] = agent
 
@@ -63,6 +73,7 @@ class MCQGroupChat:
 
         self.initializer = TrackableUserProxyAgent(
             name="Init",
+            system_message=system_message
         )
 
         self.accepter = TrackableAssistantAgent(
@@ -72,20 +83,32 @@ class MCQGroupChat:
         )
         self.agents["Accepter"] = self.accepter
 
-    def start_chat(self, messages=[], max_round=20, **kwargs):
+    def start_chat(self, messages=[], **kwargs):
         self.groupchat = GroupChat(
             agents=self.agents.values(),
             messages=messages,
-            max_round=max_round,
+            max_round=self.max_round,
             **kwargs
         )
         self.manager = GroupChatManager(groupchat=self.groupchat, llm_config=self.gpt_config)
     
     def __call__(self, **kwargs):
         self.start_chat(**kwargs)
-        self.chat = self.initializer.initiate_chat(
-            self.manager, message=self.message
-        )
+        error_counter = 0
+        try:
+            self.chat = self.initializer.initiate_chat(
+                self.manager, message=self.message
+            )
+        except Exception as e:
+            error_counter += 1
+            if error_counter < 3:
+                print(f"Error: {e}. Retrying...")
+                self.chat = self.initializer.initiate_chat(
+                    self.manager, message=self.message
+                )
+            else:
+                print(f"Error: {e}. Exiting...")
+                return None
         return self.chat
     
 class Stateflow(MCQGroupChat):

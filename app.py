@@ -6,7 +6,7 @@ import re
 
 st.title('Tufts DPT - Multiple Choice Generation')
 message = st.text_area('Starting message:', value=prompts.DEFAULT_MCQ_GEN)
-gc_option = st.selectbox('Group chat option:', ['Stateflow'])
+gc_option = st.selectbox('Group chat option:', ['Stateflow', 'Stateflow (no critics)'])
 
 if 'messages' not in st.session_state:
     st.session_state['messages'] = []
@@ -16,6 +16,9 @@ if 'questions' not in st.session_state:
 
 if gc_option == 'Stateflow':
     chat = chatting.Stateflow(system_message=prompts.SYSTEM_MESSAGE, message=message) 
+    chat.start_chat()
+if gc_option == 'Stateflow (no critics)':
+    chat = chatting.StateflowNoCritics(system_message=prompts.SYSTEM_MESSAGE, message=message) 
     chat.start_chat()
 
 def clear_state():

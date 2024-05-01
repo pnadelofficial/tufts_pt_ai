@@ -115,8 +115,8 @@ class Stateflow(MCQGroupChat):
     def __init__(self, seed=42, **kwargs):
         agent_dict = {
             "QUADL_CAPTE": ("asst_3O5xFFjKdgoIigPlwDrmIlRX", "gpt-4"),
-            # "s_critic": ("asst_tHvvMNxSo6MbkwJnR3LDTFhV", "gpt-4"),
-            # "s_critic2": ("asst_6u7I2TCs7adHSS7rOA8I91YA", "gpt-4"),
+            "s_critic": ("asst_tHvvMNxSo6MbkwJnR3LDTFhV", "gpt-4"),
+            "s_critic2": ("asst_6u7I2TCs7adHSS7rOA8I91YA", "gpt-4"),
         }
         super().__init__("Stateflow", agent_dict, seed=seed, **kwargs)
 
@@ -157,4 +157,48 @@ class Stateflow(MCQGroupChat):
     
     def __call__(self, **kwargs):
         return super().__call__(speaker_selection_method=self.state_transition, **kwargs)
-        
+    
+class StateflowNoCritics(MCQGroupChat):
+    def __init__(self, seed=42, **kwargs):
+        agent_dict = {
+            "QUADL_CAPTE": ("asst_3O5xFFjKdgoIigPlwDrmIlRX", "gpt-4"),
+        }
+        super().__init__("Stateflow", agent_dict, seed=seed, **kwargs)
+
+    def state_transition(self, last_speaker, groupchat):
+        messages = groupchat.messages
+
+        if last_speaker is self.initializer:
+            quadl = self.agents["QUADL_CAPTE"]
+            time.sleep(3)
+            return quadl
+            # State 1-> State 2: Verify
+        elif last_speaker is self.agents["QUADL_CAPTE"]:
+            # Assuming the last message contains the output path or relevant information
+            accepter = self.agents["accepter"]
+            time.sleep(3)
+            return accepter
+        # elif last_speaker is self.agents["s_critic"]:
+        #     if messages[-1]["content"].strip().lower() == "true":
+        #         print("Transitioning to accepter")
+        #         return self.accepter
+        #     else:
+        #         print("Transitioning to s_critic2")
+        #         s_critic2 = self.agents["s_critic2"]
+        #         time.sleep(3)
+        #         return s_critic2
+        # elif last_speaker is self.agents["s_critic2"]:
+        #     if messages[-1]["content"].strip().lower() == "true":
+        #         print("Transitioning to accepter")
+        #         return self.accepter      
+        #     else:
+        #         print("Transitioning back to QUADL_CAPTE")
+        #         quadl = self.agents["QUADL_CAPTE"]
+        #         time.sleep(3)
+        #         return quadl
+        elif last_speaker is self.accepter:
+            # State 3 -> End
+            return None
+    
+    def __call__(self, **kwargs):
+        return super().__call__(speaker_selection_method=self.state_transition, **kwargs)

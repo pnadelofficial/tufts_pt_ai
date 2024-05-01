@@ -30,6 +30,6 @@ if st.button('Start Chat', on_click=clear_state):
 
     for q in st.session_state['questions']:
         st.header(f'Question {st.session_state["questions"].index(q)+1}')
-        _split = re.split(r'([A-Z]+:)', q)[1:]
+        _split = re.split(r'([A-Z]+:)|([A-Z]+\.)', q)[1:]
         st.markdown('\n'.join(['* '+''.join([s, _split[i+1]]) for i, s in enumerate(_split[:-1]) if i % 2 == 0]))
     st.download_button('Download questions as a CSV', pd.DataFrame(st.session_state['questions']).to_csv(), f'questions.csv', 'text/csv')

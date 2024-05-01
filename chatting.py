@@ -38,7 +38,7 @@ class TrackableGPTAssistantAgent(GPTAssistantAgent):
         return super()._process_received_message(message, sender, silent)
 
 class MCQGroupChat:
-    def __init__(self, name, agent_dict, system_message='', message=prompts.DEFAULT_MCQ_GEN, accepter_model='gpt-4-1106-preview', seed=42, accepter_temp=0, accepter_timeout=120, max_round=5):
+    def __init__(self, name, agent_dict, system_message='', message=prompts.DEFAULT_MCQ_GEN, accepter_model='gpt-4-1106-preview', seed=42, accepter_temp=0, accepter_timeout=120, max_round=10):
         self.name = name
         self.message = message
         self.agent_dict = agent_dict

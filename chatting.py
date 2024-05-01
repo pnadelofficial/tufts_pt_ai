@@ -115,8 +115,8 @@ class Stateflow(MCQGroupChat):
     def __init__(self, seed=42, **kwargs):
         agent_dict = {
             "QUADL_CAPTE": ("asst_3O5xFFjKdgoIigPlwDrmIlRX", "gpt-4"),
-            "s_critic": ("asst_tHvvMNxSo6MbkwJnR3LDTFhV", "gpt-4"),
-            "s_critic2": ("asst_6u7I2TCs7adHSS7rOA8I91YA", "gpt-4"),
+            # "s_critic": ("asst_tHvvMNxSo6MbkwJnR3LDTFhV", "gpt-4"),
+            # "s_critic2": ("asst_6u7I2TCs7adHSS7rOA8I91YA", "gpt-4"),
         }
         super().__init__("Stateflow", agent_dict, seed=seed, **kwargs)
 

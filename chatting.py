@@ -24,6 +24,17 @@ class TrackableAssistantAgent(AssistantAgent):
                 st.session_state['questions'].append(q.strip())
         st.session_state['messages'].append(output)
         return super()._process_received_message(message, sender, silent)
+
+class TrackableAccepterAssistantAgent(AssistantAgent):
+    def _process_received_message(self, message, sender, silent):
+        output = message["name"] + ": " + message["content"]
+        content = message["content"]
+        pattern = r"Question\s\(Q\):.*Bloom's\sTaxonomy.*|Learning Objective \(LO\):.*Bloom's\sTaxonomy.*"
+        q_check = re.search(pattern, content, re.DOTALL)
+        if q_check:
+            st.session_state['questions'].append(q_check.group(0))
+        st.session_state['messages'].append(output)
+        return super()._process_received_message(message, sender, silent)
     
 class TrackableUserProxyAgent(UserProxyAgent):
     def _process_received_message(self, message, sender, silent):
@@ -38,9 +49,9 @@ class TrackableGPTAssistantAgent(GPTAssistantAgent):
         return super()._process_received_message(message, sender, silent)
 
 class MCQGroupChat:
-    def __init__(self, name, agent_dict, system_message='', message=prompts.DEFAULT_MCQ_GEN, accepter_model='gpt-4-1106-preview', seed=42, accepter_temp=0, accepter_timeout=120, max_round=10):
+    def __init__(self, name, agent_dict, init_system_message=prompts.DEFAULT_MCQ_GEN, accepter_model='gpt-4-1106-preview', seed=42, accepter_temp=0, accepter_timeout=120, max_round=10):
         self.name = name
-        self.message = message
+        self.message = init_system_message
         self.agent_dict = agent_dict
         self.accepter_model = accepter_model
         self.seed = seed
@@ -52,8 +63,28 @@ class MCQGroupChat:
 
         self.agents = {}
         for name, tup in agent_dict.items():
-            agent_id, model = tup
-            agent = TrackableGPTAssistantAgent(name=name, llm_config = {"config_list": [{"model":model,"api_key":self.api_key, 'check_every_ms':300, "request_timeout": 6000}], "assistant_id":agent_id, })
+            agent_id, model, description, system_message = tup
+            if agent_id:
+                agent = TrackableGPTAssistantAgent(
+                    name=name, 
+                    llm_config = {
+                        "config_list": [
+                            {"model":model,"api_key":self.api_key}
+                            ], 
+                            "assistant_id":agent_id,
+                        }
+                    )
+            else:
+                agent = TrackableAssistantAgent(
+                    name=name, 
+                    llm_config = {
+                        "config_list": [
+                            {"model":model,"api_key":self.api_key}
+                            ]
+                        },
+                    system_message=system_message,
+                    description=description
+                    )
             agent.register_function(function_map={})
             self.agents[name] = agent
 
@@ -76,10 +107,12 @@ class MCQGroupChat:
             system_message=system_message
         )
 
-        self.accepter = TrackableAssistantAgent(
+        self.accepter = TrackableAccepterAssistantAgent(
             name="Accepter",
             llm_config=self.gpt_config,
-            system_message=prompts.ACCEPTER
+            system_message=prompts.ACCEPTER,
+            description="""I am **ONLY** allowed to speak **immediately** after `reflect`. I must make sure to output **ONLY** the multiple-choice item and **ONLY** in the appropriate format
+    with **ALL** of the appropriate labels. TERMINATE"""
         )
         self.agents["Accepter"] = self.accepter
 
@@ -114,9 +147,9 @@ class MCQGroupChat:
 class Stateflow(MCQGroupChat):
     def __init__(self, seed=42, **kwargs):
         agent_dict = {
-            "QUADL_CAPTE": ("asst_3O5xFFjKdgoIigPlwDrmIlRX", "gpt-4"),
-            "s_critic": ("asst_tHvvMNxSo6MbkwJnR3LDTFhV", "gpt-4"),
-            "s_critic2": ("asst_6u7I2TCs7adHSS7rOA8I91YA", "gpt-4"),
+            "QUADL_CAPTE": ("asst_3O5xFFjKdgoIigPlwDrmIlRX", "gpt-4", None, None),
+            "s_critic": ("asst_tHvvMNxSo6MbkwJnR3LDTFhV", "gpt-4", None, None),
+            "s_critic2": ("asst_6u7I2TCs7adHSS7rOA8I91YA", "gpt-4", None, None),
         }
         super().__init__("Stateflow", agent_dict, seed=seed, **kwargs)
 
@@ -161,7 +194,7 @@ class Stateflow(MCQGroupChat):
 class StateflowNoCritics(MCQGroupChat):
     def __init__(self, seed=42, **kwargs):
         agent_dict = {
-            "QUADL_CAPTE": ("asst_3O5xFFjKdgoIigPlwDrmIlRX", "gpt-4"),
+            "QUADL_CAPTE": ("asst_3O5xFFjKdgoIigPlwDrmIlRX", "gpt-4", None, None),
         }
         super().__init__("Stateflow", agent_dict, seed=seed, **kwargs)
 
@@ -184,3 +217,42 @@ class StateflowNoCritics(MCQGroupChat):
     
     def __call__(self, **kwargs):
         return super().__call__(speaker_selection_method=self.state_transition, **kwargs)
+    
+class DebateAndReflect(MCQGroupChat):
+    def __init__(self, seed=42, **kwargs):
+        agent_dict = {
+            "QUADL_CAPTE": ("asst_3O5xFFjKdgoIigPlwDrmIlRX", "gpt-4-1106-preview", None, None),
+            "diff_critA":(None, "gpt-3.5-turbo", prompts.DIFF_CRIT, "I am **ONLY** allowed to to speak  **immediately** after `QUADL_CAPTE` or `diff_critB`."),
+            "diff_critB":(None, "gpt-3.5-turbo", prompts.DIFF_CRIT, "I am **ONLY** allowed to to speak  **immediately** after `diff_critA`."),
+            "diff_critC":(None, "gpt-3.5-turbo", prompts.DIFF_CRIT, "I am **ONLY** allowed to to speak  **immediately** after `diff_critB`."),
+            "reflect":(None, "gpt-4-1106-preview", prompts.REFLECTER, "I am **ONLY** allowed to speak **immediately** after `diff_critC`. I will **ONLY** communicate with `accepter`."),
+        }
+        super().__init__("DebateAndReflect", agent_dict, seed=seed, **kwargs)
+        self.agents["user_proxy"] = self.initializer
+
+        self.graph_dict = {}
+        self.graph_dict[self.agents["user_proxy"]] = [self.agents["QUADL_CAPTE"]]
+        self.graph_dict[self.agents["QUADL_CAPTE"]] = [self.agents["diff_critA"]]
+        self.graph_dict[self.agents["diff_critA"]] = [self.agents["diff_critB"]]
+        self.graph_dict[self.agents["diff_critB"]] = [self.agents["diff_critA"], self.agents["diff_critC"]]
+        self.graph_dict[self.agents["diff_critC"]] = [self.agents["reflect"]]
+        self.graph_dict[self.agents["reflect"]] = [self.agents["Accepter"]]
+        #peter added
+        self.graph_dict[self.agents["Accepter"]] = [self.agents["diff_critA"]]
+    
+    def start_chat(self, messages=[], **kwargs):
+        self.groupchat = GroupChat(
+            agents=self.agents.values(),
+            messages=messages,
+            max_round=self.max_round,
+            allowed_or_disallowed_speaker_transitions=self.graph_dict,
+            allow_repeat_speaker=None, 
+            speaker_transitions_type="allowed",
+            **kwargs
+        )
+        self.manager = GroupChatManager(
+            groupchat=self.groupchat, 
+            llm_config=self.gpt_config,
+            is_termination_msg=lambda x: x.get("content", "") and x.get("content", "").rstrip().endswith("TERMINATE"),
+            code_execution_config=False,
+        )

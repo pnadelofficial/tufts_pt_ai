@@ -1,4 +1,5 @@
 pyautogen
-pandas==2.2.2
 python-dotenv==1.0.1
-streamlit==1.33.0
+streamlit==1.36.0
+openai==1.30.1
+pypdf==4.2.0

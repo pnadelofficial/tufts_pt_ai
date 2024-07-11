@@ -159,5 +159,7 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-/notebooks/
+./notebooks/*ipynb
 /.streamlit/
+*.ipynb
+/Users/pnadel01/Desktop/tufts_pt_ai/notebooks/testing.ipynb

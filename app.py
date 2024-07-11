@@ -1,84 +1,48 @@
 import streamlit as st
-import chatting
 import prompts
-import pandas as pd
-import re
+import utils
+import json
 
 st.title('Tufts DPT - Multiple Choice Generation')
-init_system_message = st.text_area('Starting message:', value=prompts.DEFAULT_MCQ_GEN, height=450)
-gc_option = st.selectbox('Group chat option:', ['Debate and Reflect', 'Stateflow', 'Stateflow (no critics)'])
 
-if 'messages' not in st.session_state:
-    st.session_state['messages'] = []
+uploaded_files = st.file_uploader("Upload a PDF file", type="pdf", accept_multiple_files=False)
+if not uploaded_files:
+    st.warning('Please upload a PDF file.')
+else:
+    st.success('PDF file uploaded successfully!')
+    text, init_system_message = utils.file_uploader(uploaded_files)
+    client = utils.get_client()
 
-if 'questions' not in st.session_state:
-    st.session_state['questions'] = []
+    if 'messages' not in st.session_state:
+        st.session_state['messages'] = []
 
-if gc_option == 'Stateflow':
-    chat = chatting.Stateflow(init_system_message=prompts.SYSTEM_MESSAGE) 
-    chat.start_chat()
-if gc_option == 'Stateflow (no critics)':
-    chat = chatting.StateflowNoCritics(init_system_message=prompts.SYSTEM_MESSAGE) 
-    chat.start_chat()
-if gc_option == 'Debate and Reflect':
-    chat = chatting.DebateAndReflect(init_system_message=init_system_message) 
-    chat.start_chat()
+    if 'questions' not in st.session_state:
+        st.session_state['questions'] = []
 
-def clear_state():
-    st.session_state['questions'] = []
+    if "chat_messages" not in st.session_state:
+        st.session_state["chat_messages"] = []
 
-if st.button('Start Chat', on_click=clear_state):
-    with st.spinner('Generating questions...'):
-        chat()
+    if "chat_model" not in st.session_state:
+        st.session_state["chat_model"] = "gpt-4o"
 
-    q_dicts = {}
-    q_raw = st.session_state['questions'][-1].replace('\n', '')
-
-    questions = re.split(r'(?=Learning)', q_raw)[1:]
-
-    for i, q in enumerate(questions):
-        q_dict = {}
-        lo_check = re.search(r"(Learning Objective) \(LO\):(.*?)(?=CAPTE)", q)
-        if lo_check:
-            q_dict[lo_check.group(1)] = lo_check.group(2)
-        capte_check = re.search(r"(CAPTE Standard) \(CAPTE\):(.*?)(?=Stem)", q)
-        if capte_check:
-            q_dict[capte_check.group(1)] = capte_check.group(2)
-        stem_check = re.search(r"(Stem):(.*?)(?=Answer)", q)
-        if stem_check:
-            q_dict[stem_check.group(1)] = stem_check.group(2)    
-        answer_check = re.search(r"(Answer) \(A\):(.*?)(?=New Distractors)", q)
-        if answer_check:
-            q_dict[answer_check.group(1)] = answer_check.group(2)
-        distractors_check = re.search(r"(New Distractors):(.*?)(?=Sentence)", q)
-        if distractors_check:
-            q_dict[distractors_check.group(1)] = distractors_check.group(2)
-        sentence_check = re.search(r"(Sentence quote from content).*?:(.*?)(?=Bloom)", q)
-        if sentence_check:
-            q_dict[sentence_check.group(1)] = sentence_check.group(2)
-        bloom_check = re.search(r"(Bloom's Taxonomy Level) \(B\):(.*)", q)
-        if bloom_check:
-            bloom = bloom_check.group(2)
-            bloom = re.sub(r'###.*', '', bloom)
-            bloom = re.sub(r'---', '', bloom)
-            q_dict[bloom_check.group(1)] = bloom_check.group(2)
-        q_dicts[i] = q_dict
-    
-    for i in range(len(q_dicts)):
-        st.write(f'**Question {i+1}**')
-        q_dict = q_dicts[i]
-        for key, value in q_dict.items():
-            if key == 'New Distractors':
-                value = re.split(r'[a-z]\)', value)[1:]
-                for i, v in enumerate(value):
-                    if i == 0:
-                        st.write(f'**{"B)"}**: {v}')
-                    elif i == 1:
-                        st.write(f'**{"C)"}**: {v}')
-                    elif i == 2:
-                        st.write(f'**{"D)"}**: {v}')
-            elif key == 'Answer':
-                st.write(f'**{"Correct answer: A)"}**: {value}')
-            else: 
-                st.write(f'**{key}**: {value}')
-        st.divider()
+    q_dict = utils.produce_question(init_system_message)
+    @st.experimental_fragment
+    def chat_fragment(q_dict):
+        st.session_state['chat_messages'].append(
+            {'role':'system', 'content':prompts.CHAT_SYSTEM_PROMPT.format(mcq=json.dumps(q_dict), content=text)}
+        )
+        chat_container = st.container(height=700)
+        beginning_response = client.chat.completions.create(model=st.session_state["chat_model"], messages=st.session_state['chat_messages'])
+        beginning_msg = beginning_response.choices[0].message.content
+        chat_container.chat_message("assistant").write(beginning_msg) 
+        if prompt := st.chat_input():
+            st.session_state['chat_messages'].append({"role": "user", "content": prompt})
+            chat_container.chat_message("user").write(prompt)
+            
+            with chat_container.chat_message("assistant"):
+                stream = client.chat.completions.create(model=st.session_state["chat_model"], messages=st.session_state['chat_messages'], stream=True)
+                response = st.write_stream(stream)
+            
+            st.session_state['chat_messages'].append({"role": "assistant", "content": response})
+    chat_fragment(q_dict)
+    st.button("Restart with a new question.", on_click=utils.clear_state)

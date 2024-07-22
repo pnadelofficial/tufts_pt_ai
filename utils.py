@@ -23,11 +23,11 @@ def create_config(model):
     ]
 
 @st.cache_resource
-def file_uploader(uploaded_files):
+def file_uploader(uploaded_files, difficulty_level):
     if uploaded_files:
         pdf = pypdf.PdfReader(uploaded_files)
         text = ' '.join([page.extract_text() for page in pdf.pages])
-        init_system_message = prompts.INIT_MESSAGE.format(num_questions=1, text=text)
+        init_system_message = prompts.INIT_MESSAGE.format(num_questions=1, difficulty_level=difficulty_level, text=text)
     return text, init_system_message
 
 @st.cache_resource
@@ -84,19 +84,19 @@ def get_agents():
     diff_critA = TrackableAssistantAgent(
         name='diff_critA',
         system_message= prompts.DISTRACTOR_A,
-        llm_config={"config_list": create_config('gpt-3.5-turbo'), "cache_seed": None},
+        llm_config={"config_list": create_config('gpt-4o-mini'), "cache_seed": None},
     )
 
     diff_critB = TrackableAssistantAgent(
         name='diff_critB',
         system_message= prompts.DISTRACTOR_B,
-        llm_config={"config_list": create_config('gpt-3.5-turbo'), "cache_seed": None},
+        llm_config={"config_list": create_config('gpt-4o-mini'), "cache_seed": None},
     )
 
     diff_critC = TrackableAssistantAgent(
         name='diff_critC',
         system_message= prompts.DISTRACTOR_C,
-        llm_config={"config_list": create_config('gpt-3.5-turbo'), "cache_seed": None},
+        llm_config={"config_list": create_config('gpt-4o-mini'), "cache_seed": None},
     )
 
     flaws = TrackableAssistantAgent(
